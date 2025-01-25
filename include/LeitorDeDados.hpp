@@ -5,6 +5,16 @@
 #include "Voo.hpp"
 #include "Consulta.hpp"
 #include "Container.hpp"
+#include "Stack.hpp"
+
+// Estrutura para representar nós da árvore sintática
+struct NoExpressao {
+    std::string valor;
+    NoExpressao* esquerda;
+    NoExpressao* direita;
+
+    NoExpressao(const std::string& val) : valor(val), esquerda(nullptr), direita(nullptr) {}
+};
 
 class LeitorDeDados {
 public:
@@ -24,9 +34,13 @@ private:
     Consulta parseConsulta(const std::string& linha);
     long parseDataHora(const std::string& dataHora);
 
+    // Construção e avaliação da árvore sintática
+    NoExpressao* construirArvoreSintatica(const std::string& expressao);
+    bool avaliarArvoreSintatica(NoExpressao* no, Voo* voo);
+    void liberarArvoreSintatica(NoExpressao* no);
+
     // Métodos auxiliares para processamento de lógica
-    bool avaliarExpressaoLogica(Voo* voo, const std::string& expressao);
-    bool avaliarCondicao(Voo* voo, const std::string& condicao); // Avaliação de condições individuais
+    bool avaliarCondicao(Voo* voo, const std::string& condicao);
     void ordenarVoos(Container<Voo*>& voos, const std::string& criterio);
     void imprimirVoo(Voo* voo);
 };

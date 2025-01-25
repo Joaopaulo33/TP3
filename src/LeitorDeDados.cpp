@@ -1,10 +1,53 @@
 #include "LeitorDeDados.hpp"
-#include "Stack.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <ctime>
 #include <iomanip> // Para std::put_time
+
+NoExpressao* LeitorDeDados::construirArvoreSintatica(const std::string& expressao) {
+    Stack<NoExpressao*> pilha;
+    std::istringstream tokens(expressao);
+    std::string token;
+
+    while (tokens >> token) {
+        if (token == "&&") {
+            NoExpressao* direita = pilha.top(); pilha.pop();
+            NoExpressao* esquerda = pilha.top(); pilha.pop();
+            NoExpressao* no = new NoExpressao(token);
+            no->esquerda = esquerda;
+            no->direita = direita;
+            pilha.push(no);
+        } else if (token != "(" && token != ")") {
+            pilha.push(new NoExpressao(token));
+        }
+    }
+
+    return pilha.isEmpty() ? nullptr : pilha.top();
+}
+
+bool LeitorDeDados::avaliarArvoreSintatica(NoExpressao* no, Voo* voo) {
+    if (!no) return false;
+    if (!no->esquerda && !no->direita) {
+        return avaliarCondicao(voo, no->valor);
+    }
+
+    bool esquerda = avaliarArvoreSintatica(no->esquerda, voo);
+    bool direita = avaliarArvoreSintatica(no->direita, voo);
+
+    if (no->valor == "&&") {
+        return esquerda && direita;
+    }
+
+    return false;
+}
+
+void LeitorDeDados::liberarArvoreSintatica(NoExpressao* no) {
+    if (!no) return;
+    liberarArvoreSintatica(no->esquerda);
+    liberarArvoreSintatica(no->direita);
+    delete no;
+}
 
 bool LeitorDeDados::lerArquivo(const std::string& nomeArquivo) {
     std::ifstream arquivo(nomeArquivo);
@@ -42,7 +85,6 @@ Voo LeitorDeDados::parseVoo(const std::string& linha) {
     std::string origem, destino, partida, chegada;
     double preco;
     int assentos, paradas;
-
     stream >> origem >> destino >> preco >> assentos >> partida >> chegada >> paradas;
 
     long dataHoraPartida = parseDataHora(partida);
@@ -55,7 +97,6 @@ Consulta LeitorDeDados::parseConsulta(const std::string& linha) {
     std::istringstream stream(linha);
     int maxVoos;
     std::string criterio, expressao;
-
     stream >> maxVoos >> criterio;
     std::getline(stream, expressao);
 
@@ -65,116 +106,41 @@ Consulta LeitorDeDados::parseConsulta(const std::string& linha) {
 void LeitorDeDados::processarConsultas() {
     for (int i = 0; i < consultas.getSize(); ++i) {
         Consulta* consulta = consultas.get(i);
-
-        std::cout << consulta->maxVoos << " " << consulta->criterioOrdenacao << " " << consulta->expressaoLogica << std::endl;
+        NoExpressao* arvoreSintatica = construirArvoreSintatica(consulta->expressaoLogica);
 
         Container<Voo*> resultados;
-
         for (int j = 0; j < voos.getSize(); ++j) {
             Voo* voo = voos.get(j);
-            if (avaliarExpressaoLogica(voo, consulta->expressaoLogica)) {
+            if (avaliarArvoreSintatica(arvoreSintatica, voo)) {
                 resultados.add(voo);
             }
         }
+        std::cout << consulta->maxVoos << " " << consulta->criterioOrdenacao << " " << consulta->expressaoLogica << std::endl;
 
         ordenarVoos(resultados, consulta->criterioOrdenacao);
 
         for (int k = 0; k < std::min(resultados.getSize(), consulta->maxVoos); ++k) {
             imprimirVoo(resultados.get(k));
         }
+
+        liberarArvoreSintatica(arvoreSintatica);
     }
-}
-
-bool LeitorDeDados::avaliarExpressaoLogica(Voo* voo, const std::string& expressao) {
-    Stack<bool> valores;
-    Stack<std::string> operadores;
-
-    std::istringstream tokens(expressao);
-    std::string token;
-
-    while (tokens >> token) {
-        if (token == "&&" || token == "||") {
-            while (!operadores.isEmpty() && operadores.top() != "(") {
-                std::string oper = operadores.top();
-                operadores.pop();
-
-                bool valorDireito = valores.top();
-                valores.pop();
-                bool valorEsquerdo = valores.top();
-                valores.pop();
-
-                if (oper == "&&") {
-                    valores.push(valorEsquerdo && valorDireito);
-                } else if (oper == "||") {
-                    valores.push(valorEsquerdo || valorDireito);
-                }
-            }
-            operadores.push(token);
-        } else if (token == "(") {
-            operadores.push(token);
-        } else if (token == ")") {
-            while (!operadores.isEmpty() && operadores.top() != "(") {
-                std::string oper = operadores.top();
-                operadores.pop();
-
-                bool valorDireito = valores.top();
-                valores.pop();
-                bool valorEsquerdo = valores.top();
-                valores.pop();
-
-                if (oper == "&&") {
-                    valores.push(valorEsquerdo && valorDireito);
-                } else if (oper == "||") {
-                    valores.push(valorEsquerdo || valorDireito);
-                }
-            }
-            if (!operadores.isEmpty() && operadores.top() == "(") {
-                operadores.pop();
-            }
-        } else {
-            // Avaliar a condição individual
-            bool resultado = avaliarCondicao(voo, token);
-            valores.push(resultado);
-        }
-    }
-
-    // Processar quaisquer operadores restantes
-    while (!operadores.isEmpty()) {
-        std::string oper = operadores.top();
-        operadores.pop();
-
-        bool valorDireito = valores.top();
-        valores.pop();
-        bool valorEsquerdo = valores.top();
-        valores.pop();
-
-        if (oper == "&&") {
-            valores.push(valorEsquerdo && valorDireito);
-        } else if (oper == "||") {
-            valores.push(valorEsquerdo || valorDireito);
-        }
-    }
-
-    return !valores.isEmpty() ? valores.top() : false;
 }
 
 bool LeitorDeDados::avaliarCondicao(Voo* voo, const std::string& condicao) {
     if (condicao.find("dur>=") != std::string::npos) {
         size_t pos = condicao.find("dur>=") + 5;
         long duracaoMinima = std::stol(condicao.substr(pos));
-
         return voo->duracao >= duracaoMinima;
     }
     if (condicao.find("sea>=") != std::string::npos) {
         size_t pos = condicao.find("sea>=") + 5;
         int minAssentos = std::stoi(condicao.substr(pos));
-
         return voo->assentosDisponiveis >= minAssentos;
     }
     if (condicao.find("dst==") != std::string::npos) {
         size_t pos = condicao.find("dst==") + 5;
         std::string destinoEsperado = condicao.substr(pos);
-
         return voo->destino == destinoEsperado;
     }
     return false;
@@ -187,7 +153,6 @@ void LeitorDeDados::ordenarVoos(Container<Voo*>& voos, const std::string& criter
             Voo* b = voos.get(j);
 
             bool swap = false;
-
             if (criterio == "psd") {
                 if (a->preco > b->preco || 
                     (a->preco == b->preco && a->numeroParadas > b->numeroParadas) || 
@@ -234,18 +199,20 @@ void LeitorDeDados::ordenarVoos(Container<Voo*>& voos, const std::string& criter
 }
 
 void LeitorDeDados::imprimirVoo(Voo* voo) {
-    std::tm* partida_tm = std::localtime(&voo->dataHoraPartida);
-    std::tm* chegada_tm = std::localtime(&voo->dataHoraChegada);
+    // Converte long para std::time_t e verifica os valores
+    std::time_t partida = static_cast<std::time_t>(voo->dataHoraPartida);
+    std::time_t chegada = static_cast<std::time_t>(voo->dataHoraChegada);
 
-    if (partida_tm && chegada_tm) {
-        std::cout << voo->origem << " " << voo->destino << " " << voo->preco << " "
-                  << voo->assentosDisponiveis << " "
-                  << std::put_time(partida_tm, "%Y-%m-%dT%H:%M:%S") << " "
-                  << std::put_time(chegada_tm, "%Y-%m-%dT%H:%M:%S") << " "
-                  << voo->numeroParadas << std::endl;
-    } else {
-        std::cerr << "Erro ao converter data/hora para o voo." << std::endl;
-    }
+    // Usar std::localtime e copiar o resultado imediatamente
+    std::tm partida_tm = *std::localtime(&partida);
+    std::tm chegada_tm = *std::localtime(&chegada);
+
+    // Saída original
+    std::cout << voo->origem << " " << voo->destino << " " << voo->preco << " "
+              << voo->assentosDisponiveis << " "
+              << std::put_time(&partida_tm, "%Y-%m-%dT%H:%M:%S") << " "
+              << std::put_time(&chegada_tm, "%Y-%m-%dT%H:%M:%S") << " "
+              << voo->numeroParadas << std::endl;
 }
 
 long LeitorDeDados::parseDataHora(const std::string& dataHora) {
