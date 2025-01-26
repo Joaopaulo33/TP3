@@ -5,20 +5,27 @@
 #include <ctime>
 #include <iomanip> // Para std::put_time
 
-NoExpressao* LeitorDeDados::construirArvoreSintatica(const std::string& expressao) {
-    Stack<NoExpressao*> pilha;
+NoExpressao *LeitorDeDados::construirArvoreSintatica(const std::string &expressao)
+{
+    Stack<NoExpressao *> pilha;
     std::istringstream tokens(expressao);
     std::string token;
 
-    while (tokens >> token) {
-        if (token == "&&") {
-            NoExpressao* direita = pilha.top(); pilha.pop();
-            NoExpressao* esquerda = pilha.top(); pilha.pop();
-            NoExpressao* no = new NoExpressao(token);
+    while (tokens >> token)
+    {
+        if (token == "&&")
+        {
+            NoExpressao *direita = pilha.top();
+            pilha.pop();
+            NoExpressao *esquerda = pilha.top();
+            pilha.pop();
+            NoExpressao *no = new NoExpressao(token);
             no->esquerda = esquerda;
             no->direita = direita;
             pilha.push(no);
-        } else if (token != "(" && token != ")") {
+        }
+        else if (token != "(" && token != ")")
+        {
             pilha.push(new NoExpressao(token));
         }
     }
@@ -26,32 +33,40 @@ NoExpressao* LeitorDeDados::construirArvoreSintatica(const std::string& expressa
     return pilha.isEmpty() ? nullptr : pilha.top();
 }
 
-bool LeitorDeDados::avaliarArvoreSintatica(NoExpressao* no, Voo* voo) {
-    if (!no) return false;
-    if (!no->esquerda && !no->direita) {
+bool LeitorDeDados::avaliarArvoreSintatica(NoExpressao *no, Voo *voo)
+{
+    if (!no)
+        return false;
+    if (!no->esquerda && !no->direita)
+    {
         return avaliarCondicao(voo, no->valor);
     }
 
     bool esquerda = avaliarArvoreSintatica(no->esquerda, voo);
     bool direita = avaliarArvoreSintatica(no->direita, voo);
 
-    if (no->valor == "&&") {
+    if (no->valor == "&&")
+    {
         return esquerda && direita;
     }
 
     return false;
 }
 
-void LeitorDeDados::liberarArvoreSintatica(NoExpressao* no) {
-    if (!no) return;
+void LeitorDeDados::liberarArvoreSintatica(NoExpressao *no)
+{
+    if (!no)
+        return;
     liberarArvoreSintatica(no->esquerda);
     liberarArvoreSintatica(no->direita);
     delete no;
 }
 
-bool LeitorDeDados::lerArquivo(const std::string& nomeArquivo) {
+bool LeitorDeDados::lerArquivo(const std::string &nomeArquivo)
+{
     std::ifstream arquivo(nomeArquivo);
-    if (!arquivo.is_open()) {
+    if (!arquivo.is_open())
+    {
         std::cerr << "Erro ao abrir o arquivo: " << nomeArquivo << std::endl;
         return false;
     }
@@ -62,7 +77,8 @@ bool LeitorDeDados::lerArquivo(const std::string& nomeArquivo) {
     std::getline(arquivo, linha);
     std::istringstream(linha) >> numeroDeVoos;
 
-    for (int i = 0; i < numeroDeVoos; ++i) {
+    for (int i = 0; i < numeroDeVoos; ++i)
+    {
         std::getline(arquivo, linha);
         voos.add(new Voo(parseVoo(linha)));
     }
@@ -71,7 +87,8 @@ bool LeitorDeDados::lerArquivo(const std::string& nomeArquivo) {
     std::getline(arquivo, linha);
     std::istringstream(linha) >> numeroDeConsultas;
 
-    for (int i = 0; i < numeroDeConsultas; ++i) {
+    for (int i = 0; i < numeroDeConsultas; ++i)
+    {
         std::getline(arquivo, linha);
         consultas.add(new Consulta(parseConsulta(linha)));
     }
@@ -80,7 +97,8 @@ bool LeitorDeDados::lerArquivo(const std::string& nomeArquivo) {
     return true;
 }
 
-Voo LeitorDeDados::parseVoo(const std::string& linha) {
+Voo LeitorDeDados::parseVoo(const std::string &linha)
+{
     std::istringstream stream(linha);
     std::string origem, destino, partida, chegada;
     double preco;
@@ -93,7 +111,8 @@ Voo LeitorDeDados::parseVoo(const std::string& linha) {
     return Voo(origem, destino, preco, assentos, dataHoraPartida, dataHoraChegada, paradas);
 }
 
-Consulta LeitorDeDados::parseConsulta(const std::string& linha) {
+Consulta LeitorDeDados::parseConsulta(const std::string &linha)
+{
     std::istringstream stream(linha);
     int maxVoos;
     std::string criterio, expressao;
@@ -103,15 +122,19 @@ Consulta LeitorDeDados::parseConsulta(const std::string& linha) {
     return Consulta(maxVoos, criterio, expressao);
 }
 
-void LeitorDeDados::processarConsultas() {
-    for (int i = 0; i < consultas.getSize(); ++i) {
-        Consulta* consulta = consultas.get(i);
-        NoExpressao* arvoreSintatica = construirArvoreSintatica(consulta->expressaoLogica);
+void LeitorDeDados::processarConsultas()
+{
+    for (int i = 0; i < consultas.getSize(); ++i)
+    {
+        Consulta *consulta = consultas.get(i);
+        NoExpressao *arvoreSintatica = construirArvoreSintatica(consulta->expressaoLogica);
 
-        Container<Voo*> resultados;
-        for (int j = 0; j < voos.getSize(); ++j) {
-            Voo* voo = voos.get(j);
-            if (avaliarArvoreSintatica(arvoreSintatica, voo)) {
+        Container<Voo *> resultados;
+        for (int j = 0; j < voos.getSize(); ++j)
+        {
+            Voo *voo = voos.get(j);
+            if (avaliarArvoreSintatica(arvoreSintatica, voo))
+            {
                 resultados.add(voo);
             }
         }
@@ -119,7 +142,8 @@ void LeitorDeDados::processarConsultas() {
 
         ordenarVoos(resultados, consulta->criterioOrdenacao);
 
-        for (int k = 0; k < std::min(resultados.getSize(), consulta->maxVoos); ++k) {
+        for (int k = 0; k < std::min(resultados.getSize(), consulta->maxVoos); ++k)
+        {
             imprimirVoo(resultados.get(k));
         }
 
@@ -127,78 +151,164 @@ void LeitorDeDados::processarConsultas() {
     }
 }
 
-bool LeitorDeDados::avaliarCondicao(Voo* voo, const std::string& condicao) {
-    if (condicao.find("dur>=") != std::string::npos) {
+bool LeitorDeDados::avaliarCondicao(Voo *voo, const std::string &condicao)
+{
+    if (condicao.find("org==") != std::string::npos)
+    {
+        size_t pos = condicao.find("org==") + 5;
+        std::string origemEsperada = condicao.substr(pos, 3); // Considerando código de 3 letras
+        if (voo->origem != origemEsperada)
+            return false;
+    }
+    if (condicao.find("dst==") != std::string::npos)
+    {
+        size_t pos = condicao.find("dst==") + 5;
+        std::string destinoEsperado = condicao.substr(pos, 3);
+        if (voo->destino != destinoEsperado)
+            return false;
+    }
+    if (condicao.find("sto<=") != std::string::npos)
+    {
+        size_t pos = condicao.find("sto<=") + 5;
+        int maxParadas = std::stoi(condicao.substr(pos));
+        if (voo->numeroParadas > maxParadas)
+            return false;
+    }
+    if (condicao.find("sto>=") != std::string::npos)
+    {
+        size_t pos = condicao.find("sto>=") + 5;
+        int minParadas = std::stoi(condicao.substr(pos));
+        if (voo->numeroParadas < minParadas)
+            return false;
+    }
+    if (condicao.find("dur>=") != std::string::npos)
+    {
         size_t pos = condicao.find("dur>=") + 5;
         long duracaoMinima = std::stol(condicao.substr(pos));
-        return voo->duracao >= duracaoMinima;
+        if (voo->duracao < duracaoMinima)
+            return false;
     }
-    if (condicao.find("sea>=") != std::string::npos) {
+    if (condicao.find("dur<=") != std::string::npos)
+    {
+        size_t pos = condicao.find("dur<=") + 5;
+        long duracaoMaxima = std::stol(condicao.substr(pos));
+        if (voo->duracao > duracaoMaxima)
+            return false;
+    }
+    if (condicao.find("sea==") != std::string::npos)
+    {
+        size_t pos = condicao.find("sea==") + 5;
+        int assentosEsperados = std::stoi(condicao.substr(pos));
+        if (voo->assentosDisponiveis != assentosEsperados)
+            return false;
+    }
+    if (condicao.find("prc>=") != std::string::npos)
+    {
+        size_t pos = condicao.find("prc>=") + 5;
+        double precoMinimo = std::stod(condicao.substr(pos));
+        if (voo->preco < precoMinimo)
+            return false;
+    }
+    if (condicao.find("prc<=") != std::string::npos)
+    {
+        size_t pos = condicao.find("prc<=") + 5;
+        double precoMaximo = std::stod(condicao.substr(pos));
+        if (voo->preco > precoMaximo)
+            return false;
+    }
+    if (condicao.find("sea>=") != std::string::npos)
+    {
         size_t pos = condicao.find("sea>=") + 5;
         int minAssentos = std::stoi(condicao.substr(pos));
-        return voo->assentosDisponiveis >= minAssentos;
+        if (voo->assentosDisponiveis < minAssentos)
+            return false;
     }
-    if (condicao.find("dst==") != std::string::npos) {
-        size_t pos = condicao.find("dst==") + 5;
-        std::string destinoEsperado = condicao.substr(pos);
-        return voo->destino == destinoEsperado;
+
+    if (condicao.find("sea<=") != std::string::npos)
+    {
+        size_t pos = condicao.find("sea<=") + 5;
+        int maxAssentos = std::stoi(condicao.substr(pos));
+        if (voo->assentosDisponiveis > maxAssentos)
+            return false;
     }
-    return false;
+    return true;
 }
 
-void LeitorDeDados::ordenarVoos(Container<Voo*>& voos, const std::string& criterio) {
-    for (int i = 0; i < voos.getSize(); ++i) {
-        for (int j = i + 1; j < voos.getSize(); ++j) {
-            Voo* a = voos.get(i);
-            Voo* b = voos.get(j);
+void LeitorDeDados::ordenarVoos(Container<Voo *> &voos, const std::string &criterio)
+{
+    for (int i = 0; i < voos.getSize(); ++i)
+    {
+        for (int j = i + 1; j < voos.getSize(); ++j)
+        {
+            Voo *a = voos.get(i);
+            Voo *b = voos.get(j);
 
             bool swap = false;
-            if (criterio == "psd") {
-                if (a->preco > b->preco || 
-                    (a->preco == b->preco && a->numeroParadas > b->numeroParadas) || 
-                    (a->preco == b->preco && a->numeroParadas == b->numeroParadas && a->duracao > b->duracao)) {
+            if (criterio == "psd")
+            {
+                if (a->preco > b->preco ||
+                    (a->preco == b->preco && a->numeroParadas > b->numeroParadas) ||
+                    (a->preco == b->preco && a->numeroParadas == b->numeroParadas && a->duracao > b->duracao))
+                {
                     swap = true;
                 }
-            } else if (criterio == "sdp") {
-                if (a->numeroParadas > b->numeroParadas || 
-                    (a->numeroParadas == b->numeroParadas && a->duracao > b->duracao) || 
-                    (a->numeroParadas == b->numeroParadas && a->duracao == b->duracao && a->preco > b->preco)) {
+            }
+            else if (criterio == "sdp")
+            {
+                if (a->numeroParadas > b->numeroParadas ||
+                    (a->numeroParadas == b->numeroParadas && a->duracao > b->duracao) ||
+                    (a->numeroParadas == b->numeroParadas && a->duracao == b->duracao && a->preco > b->preco))
+                {
                     swap = true;
                 }
-            } else if (criterio == "dps") {
-                if (a->duracao > b->duracao || 
-                    (a->duracao == b->duracao && a->preco > b->preco) || 
-                    (a->duracao == b->duracao && a->preco == b->preco && a->numeroParadas > b->numeroParadas)) {
+            }
+            else if (criterio == "dps")
+            {
+                if (a->duracao > b->duracao ||
+                    (a->duracao == b->duracao && a->preco > b->preco) ||
+                    (a->duracao == b->duracao && a->preco == b->preco && a->numeroParadas > b->numeroParadas))
+                {
                     swap = true;
                 }
-            } else if (criterio == "pds") {
-                if (a->preco > b->preco || 
-                    (a->preco == b->preco && a->duracao > b->duracao) || 
-                    (a->preco == b->preco && a->duracao == b->duracao && a->numeroParadas > b->numeroParadas)) {
+            }
+            else if (criterio == "pds")
+            {
+                if (a->preco > b->preco ||
+                    (a->preco == b->preco && a->duracao > b->duracao) ||
+                    (a->preco == b->preco && a->duracao == b->duracao && a->numeroParadas > b->numeroParadas))
+                {
                     swap = true;
                 }
-            } else if (criterio == "dsp") {
-                if (a->duracao > b->duracao || 
-                    (a->duracao == b->duracao && a->numeroParadas > b->numeroParadas) || 
-                    (a->duracao == b->duracao && a->numeroParadas == b->numeroParadas && a->preco > b->preco)) {
+            }
+            else if (criterio == "dsp")
+            {
+                if (a->duracao > b->duracao ||
+                    (a->duracao == b->duracao && a->numeroParadas > b->numeroParadas) ||
+                    (a->duracao == b->duracao && a->numeroParadas == b->numeroParadas && a->preco > b->preco))
+                {
                     swap = true;
                 }
-            } else if (criterio == "spd") {
-                if (a->numeroParadas > b->numeroParadas || 
-                    (a->numeroParadas == b->numeroParadas && a->preco > b->preco) || 
-                    (a->numeroParadas == b->numeroParadas && a->preco == b->preco && a->duracao > b->duracao)) {
+            }
+            else if (criterio == "spd")
+            {
+                if (a->numeroParadas > b->numeroParadas ||
+                    (a->numeroParadas == b->numeroParadas && a->preco > b->preco) ||
+                    (a->numeroParadas == b->numeroParadas && a->preco == b->preco && a->duracao > b->duracao))
+                {
                     swap = true;
                 }
             }
 
-            if (swap) {
+            if (swap)
+            {
                 voos.swap(i, j);
             }
         }
     }
 }
 
-void LeitorDeDados::imprimirVoo(Voo* voo) {
+void LeitorDeDados::imprimirVoo(Voo *voo)
+{
     // Converte long para std::time_t e verifica os valores
     std::time_t partida = static_cast<std::time_t>(voo->dataHoraPartida);
     std::time_t chegada = static_cast<std::time_t>(voo->dataHoraChegada);
@@ -215,12 +325,14 @@ void LeitorDeDados::imprimirVoo(Voo* voo) {
               << voo->numeroParadas << std::endl;
 }
 
-long LeitorDeDados::parseDataHora(const std::string& dataHora) {
+long LeitorDeDados::parseDataHora(const std::string &dataHora)
+{
     std::tm tm = {};
     std::istringstream ss(dataHora);
     ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
 
-    if (ss.fail()) {
+    if (ss.fail())
+    {
         std::cerr << "Erro ao analisar data/hora: " << dataHora << std::endl;
         return -1;
     }
